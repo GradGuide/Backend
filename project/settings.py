@@ -148,16 +148,19 @@ WSGI_APPLICATION = 'project.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
+import os
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'gradeguide',
-        'USER': 'postgres',
-        'PASSWORD': '123456',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.getenv('DB_NAME', 'gradeguide'),  # اسم قاعدة البيانات (default: gradeguide)
+        'USER': os.getenv('DB_USER', 'postgres'),  # اسم المستخدم (default: postgres)
+        'PASSWORD': os.getenv('DB_PASSWORD', '123456'),  # كلمة المرور (default: 123456)
+        'HOST': os.getenv('DB_HOST', 'localhost'),  # الخادم (default: localhost)
+        'PORT': os.getenv('DB_PORT', '5432'),  # المنفذ (default: 5432)
     },
 }
+
 
 
 
