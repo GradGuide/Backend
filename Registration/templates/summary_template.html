@@ -1,0 +1,107 @@
+<!-- <!DOCTYPE html>
+<html  dir="{{ direction }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ملخص النص</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        
+        body {
+            font-family: 'Amiri', 'Noto Naskh Arabic', 'sans-serif';
+            direction:  direction ;
+            display: flex;
+            justify-content: start;
+            text-align: start;
+            line-height: 1.6;
+            direction: rtl;
+        } 
+     
+        .container {
+            width: 100%;
+            padding: 20px;
+            border: 1px solid #ddd;
+            background: #f9f9f9;
+        }
+        h1 {
+            text-align: center;
+            font-size: 22px;
+            margin-bottom: 15px;
+            color:purple;
+            font-weight: 600;
+        }
+        p {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="addr">
+        <h1>SUMMARY</h1>
+    </div>
+    <div class="container">
+        <p>{{ summarized_text }}</p>
+    </div>
+</body>
+</html> -->
+
+
+
+<!DOCTYPE html>
+<html lang="ar" dir="{{ direction }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ملخص النص</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 2cm;
+        }
+        
+        body {
+            font-family: 'Amiri', 'Noto Naskh Arabic', 'sans-serif';
+            direction:  direction ;
+            display: flex;
+            justify-content: start;
+            text-align: start;
+            line-height: 1.6;
+        } 
+
+        .container {
+            width: 90%;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #ddd;
+            background: #fff;
+            border-radius: 10px;
+            box-shadow: 2px 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: purple;
+            font-weight: bold;
+        }
+
+        p {
+            font-size: 18px;
+            margin-bottom: 15px;
+            text-align: justify;
+            word-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>ملخص النص</h1>
+        <p>{{ summarized_text }}</p>
+    </div>
+</body>
+</html>

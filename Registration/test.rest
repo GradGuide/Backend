@@ -1,0 +1,50 @@
+# curl -X   http://localhost:8000/login/ \
+#     -H "Authorization: Token 62d8e9589561e626a91fcb6f7d1fccfcc212e9f8" 
+
+# curl -X POST     http://localhost:8000/signup/ \
+#       -H "Authorization: Token 57beda19fbce086abaa85e539c68b41740e9f5f2" \
+#     -d '{
+#     "email": "osama12@ed.eg",
+#     "phone": " +201095232849",
+#     "first_name": "ahmed",
+#     "last_name": "ali",
+#     "password": "osama123",
+#     "user_type": "researcher",
+#     "gender": "male",
+#     "address": "maadi,egypt"
+# }'
+{
+    "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoiYWNjZXNzIiwiZXhwIjoxNzQzODc3OTA0LCJpYXQiOjE3Mzg2OTM5MDQsImp0aSI6IjdkZmZmNzQ1OWVmYjQxZDlhNzk2Yjg4MDQyYmI5YmJkIiwidXNlcl9pZCI6Mn0.Laezps8gTyyJDC3WEc-gqg4MsZF5GUMvcn1ASI1YWVk",
+    "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ0b2tlbl90eXBlIjoicmVmcmVzaCIsImV4cCI6MTc0MTI4NTkwNCwiaWF0IjoxNzM4NjkzOTA0LCJqdGkiOiI1NWU2ZjNlYzkyNWM0M2M4OGQyMzNkMWUxOGJkOTFiYyIsInVzZXJfaWQiOjJ9.7FDDXdeMVqz6v6_5m_ZshfyHajtUehU1S1rR4xuF3H4",
+    "detail": "Login successful"
+}
+   
+# {
+#     "email": "osama12@ed.eg",
+#     "phone": " +201093232849",
+#     "first_name": "osama",
+#     "last_name": "ali",
+#     "password": "osama123",
+#     "user_type": "researcher",
+#     "gender": "male",
+#     "address": "maadi,egypt"
+# }
+# {
+#     "title": "Study on AI in Healthcare",
+#     "content": "This research paper explores the applications of artificial intelligence in the healthcare industry, with a focus on diagnostics and patient care.",
+#     "research_type": "thesis", 
+#     "user": 4
+# }
+#  a0734679f367bbd4f0fe9cced905c62df3c9a719
+#  {
+#     "email": "osama12@ed.eg",
+#      "password": "osama123",
+#  "verification_code": ""
+#  }
+# aeae002d2a0f1a5e303c895ed6c0f82ef55e5c7b
+curl -X POST http://localhost:8000/upload-research/
+
+-F "title=Machine Learning Research" 
+-F "text=Research about AI technologies"
+-F "language=en" 
+-F "pdf_file=@/path/to/your/file.pdf"
