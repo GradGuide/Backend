@@ -162,6 +162,12 @@ DATABASES = {
         'PORT': os.getenv('PGPORT', '5432'),  # المنفذ (default: 5432)
     },
 }
+import os
+import dj_database_url
+
+DATABASES = {
+    'default': dj_database_url.config(default=os.getenv("DATABASE_URL"))
+}
 
 
 
