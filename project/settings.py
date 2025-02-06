@@ -150,16 +150,19 @@ WSGI_APPLICATION = 'project.wsgi.application'
 
 import os
 
+
+# إعداد قاعدة البيانات باستخدام المتغيرات البيئية
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('DB_NAME', 'gradeguide'),  # اسم قاعدة البيانات (default: gradeguide)
-        'USER': os.getenv('DB_USER', 'postgres'),  # اسم المستخدم (default: postgres)
-        'PASSWORD': os.getenv('DB_PASSWORD', '123456'),  # كلمة المرور (default: 123456)
-        'HOST': os.getenv('DB_HOST', 'localhost'),  # الخادم (default: localhost)
-        'PORT': os.getenv('DB_PORT', '5432'),  # المنفذ (default: 5432)
+        'NAME': os.getenv('PGDATABASE', 'gradeguide'),  # اسم قاعدة البيانات (default: gradeguide)
+        'USER': os.getenv('PGUSER', 'postgres'),  # اسم المستخدم (default: postgres)
+        'PASSWORD': os.getenv('PGPASSWORD', '123456'),  # كلمة المرور (default: 123456)
+        'HOST': os.getenv('PGHOST', 'localhost'),  # الخادم (default: localhost)
+        'PORT': os.getenv('PGPORT', '5432'),  # المنفذ (default: 5432)
     },
 }
+
 
 
 
