@@ -161,6 +161,7 @@ DATABASES = {
         'HOST': os.getenv('PGHOST', 'localhost'),  # الخادم (default: localhost)
         'PORT': os.getenv('PGPORT', '5432'),  # المنفذ (default: 5432)
     },
+    
 }
 import os
 import dj_database_url
