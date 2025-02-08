@@ -165,7 +165,7 @@ DATABASES = {
 }
 import os
 import dj_database_url
-PORT = os.getenv("PORT", "8000")
+PORT = os.getenv("PORT", "5432")
 
 
 DATABASES = {
