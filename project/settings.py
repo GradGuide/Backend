@@ -166,7 +166,7 @@ import os
 import dj_database_url
 
 DATABASES = {
-    'default': dj_database_url.config(default=os.getenv("DATABASE_URL"))
+    'default': dj_database_url.config(default=os.getenv("postgresql://postgres:oLfrzXRVAFBAZPMflbCfFOYEWeFkYvZl@postgres.railway.internal:5432/railway"))
 }
 
 
