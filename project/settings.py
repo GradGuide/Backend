@@ -33,7 +33,7 @@ SECRET_KEY = 'django-insecure-!m9=h&k%*x23lk_jdo$#yhaiyhy(x%zx$(f04*e(w1-+&eyt4f
 DEBUG = True
 
 # ALLOWED_HOSTS = ['*']
-ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "192.168.89.66", "192.168.89.74"]
+ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "192.168.89.66", "192.168.89.74",'.railway.app']
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:3000",  
     "http://192.168.89.74:3000",  # ✅ تأكد من استخدام IP الـ Frontend الصحيح
@@ -166,9 +166,6 @@ DATABASES = {
 import os
 import dj_database_url
 PORT = os.getenv("PORT", "8000")
-
-ALLOWED_HOSTS = ["postgres-83sv-production.up.railway.app"]
-
 
 DATABASES = {
     'default': dj_database_url.config(default=os.getenv("DATABASE_URL"))

@@ -21,6 +21,7 @@ from django.db import transaction
 
 class RegisterView(APIView):
     permission_classes = ()
+
     # authentication_classes = [TokenAuthentication]
 
     def post(self, request):
@@ -69,7 +70,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 class User_account_View(APIView):
     # authentication_classes = [JWTAuthentication]
-    permission_classes = []
+    permission_classes = ()
 
     def put(self, request):
         try:
@@ -250,7 +251,8 @@ from .similarity import Similarity, find_common_text
 from googleapiclient.discovery import build
 
 class SimilarityCheckView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = ()
+
 
     def extract_text_from_pdf(self, pdf_file):
         """استخراج النصوص من ملف PDF"""
@@ -397,6 +399,8 @@ if not api_key:
 llm = LLM(api_key=api_key)
 
 class GrammarCorrectionAPIView(APIView):
+    permission_classes = ()
+
     def post(self, request):
         text = request.data.get("text", "")
 
@@ -424,6 +428,8 @@ from .qna import QnA
 
 
 class QnAView(APIView):
+    permission_classes = ()
+
     """
     API View to handle question answering.
     """
@@ -667,6 +673,4 @@ class SummarizeTextView(APIView):
                 "pdf_url": pdf_url,
             },
             status=200,
-        )
-    
-        ##################################################################
+        )        ##################################################################
