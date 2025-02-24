@@ -14,6 +14,12 @@ class UserManager(BaseUserManager):
         user.set_password(password)
         user.save(using=self._db)
         return user
+    def create_superuser(self, email, password=None, **extra_fields):
+        """Create and return a superuser with an email and password."""
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+
+        return self.create_user(email, password, **extra_fields)
 
 class User(AbstractBaseUser):
     USER_TYPE_CHOICES = [
@@ -31,6 +37,22 @@ class User(AbstractBaseUser):
         message='The email must be a Gmail or Outlook address.',
         code='invalid_email'
     )
+    is_staff = models.BooleanField(default=False)  # يحدد إن كان المستخدم موظفًا في النظام
+    is_superuser = models.BooleanField(default=False)  # يحدد إن كان المستخدم أدمن
+    is_active = models.BooleanField(default=True)
+
+    objects = UserManager()
+
+    USERNAME_FIELD = "email"
+    REQUIRED_FIELDS = []
+
+    def has_perm(self, perm, obj=None):
+        """تحقق مما إذا كان المستخدم يملك الصلاحية المحددة"""
+        return self.is_superuser
+
+    def has_module_perms(self, app_label):
+        """تحقق مما إذا كان المستخدم يملك صلاحيات الدخول إلى أي تطبيق معين"""
+        return self.is_superuser
 
     first_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)
@@ -79,7 +101,6 @@ from django.utils.timezone import now
 
     # original_text = models.TextField(default="", blank=True)
     # summarized_text = models.TextField(default="")  # النص الملخص
-   
 
 
 from django.db import models
@@ -113,10 +134,45 @@ class SimilarityResult(models.Model):
     def __str__(self):
         return f"Similarity {self.similarity_score} - {self.user.username if self.user else 'Anonymous'}"
 
-class Question_LLM(models.Model):
-    text = models.TextField(null=True, blank=True)  # النص الأصلي (إذا كان المستخدم أدخل نصًا)
-    pdf_file = models.FileField(upload_to="pdfs/", null=True, blank=True)  # رفع PDF
-    questions = models.JSONField(default=list)  # تخزين الأسئلة المولدة
-    user_answers = models.JSONField(default=list)  # إجابات المستخدم
-    validation_results = models.JSONField(default=dict)  # نتيجة التحقق من صحة الإجابة
+
+from django.db import models
+from django.conf import settings
+
+class QnA(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+    text = models.TextField()  # النص الأصلي أو المستخرج من PDF
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"QnA Session ({self.user.username if self.user else 'Guest'}) - {self.created_at.strftime('%Y-%m-%d %H:%M')}"
+
+class Question(models.Model):
+    qna_session = models.ForeignKey(QnA, on_delete=models.CASCADE, related_name="questions")
+    text = models.TextField()
+
+    def __str__(self):
+        return f"Question: {self.text[:30]}"
+
+class Answer(models.Model):
+    question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="answers")
+    user_answer = models.TextField()
+    is_correct = models.BooleanField(null=True, blank=True)  # الآن يمكن أن يكون فارغًا
+    score = models.IntegerField()
+    feedback = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Answer to {self.question.text[:30]} - Score: {self.score}"
+
+
+from django.db import models
+
+class GrammarCorrectionHistory(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
+    input_text = models.TextField()
+    corrected_text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        user_info = self.user.username if self.user else "Anonymous"
+        return f"Correction by {user_info} on {self.created_at.strftime('%Y-%m-%d %H:%M')}"

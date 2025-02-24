@@ -153,7 +153,7 @@ class LLM:
         """
         system_instruction = (
             "You are an AI assistant that corrects grammar and spelling. Rewrite the text and change "
-            "what's necessary with no errors, without any explanation."
+            "what's necessary with no errors, without any explanation. detect the language and correct it in siad language."
         )
         return self._generate_content(
             f"\n```{text}```",

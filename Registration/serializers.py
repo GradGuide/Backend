@@ -172,8 +172,45 @@ class SummarizationSerializer(serializers.ModelSerializer):
 #         fields = ["input_text", "matched_text", "similarity_percentage", "source_link"]
 
 ######################################################################################### Similarity
-from .models import Question_LLM
-class QuestionAnswerSerializer(serializers.ModelSerializer):
+# from .models import Question_LLM
+# class QuestionAnswerSerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model =Question_LLM
+#         fields = "__all__"
+# from rest_framework import serializers
+# from .models import QnA
+
+# class QnASerializer(serializers.ModelSerializer):
+#     class Meta:
+#         model = QnA
+#         fields = '__all__'
+from rest_framework import serializers
+from .models import QnA, Question, Answer,GrammarCorrectionHistory
+
+class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
-        model =Question_LLM
+        model = Question
+        fields = '__all__'
+
+class AnswerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Answer
+        fields = '__all__'
+
+class QnASerializer(serializers.ModelSerializer):
+    questions = QuestionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = QnA
+        fields = '__all__'
+class GrammarCorrectionHistorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GrammarCorrectionHistory
+        fields = '__all__'
+from rest_framework import serializers
+from .models import SimilarityResult
+
+class SimilarityResultSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SimilarityResult
         fields = "__all__"

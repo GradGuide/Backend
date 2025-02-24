@@ -33,14 +33,11 @@ SECRET_KEY = 'django-insecure-!m9=h&k%*x23lk_jdo$#yhaiyhy(x%zx$(f04*e(w1-+&eyt4f
 DEBUG = True
 
 # ALLOWED_HOSTS = ['*']
-ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "192.168.89.66", "192.168.89.74",'.railway.app']
-CSRF_TRUSTED_ORIGINS = [
-    "http://localhost:3000",  
-    "http://192.168.89.74:3000",  # ✅ تأكد من استخدام IP الـ Frontend الصحيح
-]
+ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "192.168.251.66", "192.168.251.74",'.railway.app']
+CSRF_TRUSTED_ORIGINS = ['http://192.168.251.74:3000', 'http://192.168.251.74:8000']
+CORS_ALLOW_ALL_ORIGINS = True  # السماح لجميع المواقع
+CORS_ALLOW_CREDENTIALS = True  # السماح باستخدام الكوكيز والتوكن
 
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_HEADERS = ["*"]
 
 
@@ -111,10 +108,9 @@ MIDDLEWARE = [
    
 ]
 
-
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://192.168.89.74:3000",  # ✅ السماح بالـ Frontend
+    "http://192.168.251.74:3000",  # ✅ السماح بالـ Frontend
 ]
 
 
@@ -155,21 +151,16 @@ import os
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.getenv('PGDATABASE', 'gradeguide'),  # اسم قاعدة البيانات (default: gradeguide)
-        'USER': os.getenv('PGUSER', 'postgres'),  # اسم المستخدم (default: postgres)
-        'PASSWORD': os.getenv('PGPASSWORD', '123456'),  # كلمة المرور (default: 123456)
-        'HOST': os.getenv('PGHOST', 'localhost'),  # الخادم (default: localhost)
-        'PORT': os.getenv('PGPORT', '5432'),  # المنفذ (default: 5432)
+        'NAME': 'gradeguide',  # اسم قاعدة البيانات
+        'USER': 'postgres',  # اسم المستخدم
+        'PASSWORD': '123456',  # كلمة المرور
+        'HOST': 'localhost',  # الخادم
+        'PORT': '5432',  # المنفذ
     },
-
 }
-import os
-import dj_database_url
-PORT = os.getenv("PORT", "8000")
 
-DATABASES = {
-    'default': dj_database_url.config(default=os.getenv("DATABASE_URL"))
-}
+
+
 
 
 
@@ -236,6 +227,8 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760    # بلا حد معين (إزالة ا�
 
 # المسار المؤقت للملفات عند رفع ملفات كبيرة
 
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 
 

@@ -45,7 +45,6 @@ class Similarity:
         similarity = cosine_similarity([sentence_embeddings[0], sentence_embeddings[1]])
         return similarity
 
-    @process_in_batches
     def sbert_similarity(self, paragraphs: List[str]) -> List[List[float]]:
         """
         Compute similarity using SBERT embeddings for multiple paragraphs.
@@ -54,7 +53,6 @@ class Similarity:
         similarities = cosine_similarity(embeddings)
         return similarities
 
-    @process_in_batches
     def tfidf_cosine_similarity(self, sentences: List[str]) -> List[List[float]]:
         """
         Compute similarity using TF-IDF vectorization and cosine similarity for multiple sentences.
