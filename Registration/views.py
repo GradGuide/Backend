@@ -350,15 +350,26 @@ class SimilarityCheckViews(APIView):
             sbert_score = similarity.sbert_similarity([text1, text2])[0][1] * 100
             tfidf_score = similarity.tfidf_cosine_similarity([text1, text2])[0][1] * 100
             common_data = find_common_text(text1, text2)
-
+            
+            # ✅ حفظ النتيجة في قاعدة البيانات
+            similarity_result = SimilarityResult.objects.create(
+                user=user,
+                input_text=text1,
+                compared_text=text2,
+                sbert_similarity=sbert_score,
+                tfidf_similarity=tfidf_score,
+                common_words=", ".join(common_data["common_words"]),
+                common_sentences="\n".join(common_data["common_sentences"]),
+                common_paragraphs="\n\n".join(common_data["common_paragraphs"]),
+            )
+            
             similarity_results.append({
                 "title": "مقارنة بين النصين",
-                "url": "N/A",
-                "tfidf": f"{sbert_score:.2f}",
-                "sbert": f"{tfidf_score:.2f}",
-                "common_words": ", ".join(common_data["common_words"]),
-                "common_sentences": "\n".join(common_data["common_sentences"]),
-                "common_paragraphs": "\n\n".join(common_data["common_paragraphs"]),
+                "sbert_similarity": f"{sbert_score:.2f}%",
+                "tfidf_similarity": f"{tfidf_score:.2f}%",
+                "common_words": similarity_result.common_words,
+                "common_sentences": similarity_result.common_sentences,
+                "common_paragraphs": similarity_result.common_paragraphs,
             })
 
         # ✅ إذا كان هناك **نص واحد فقط**، نستخدم Web Scraping
@@ -373,15 +384,14 @@ class SimilarityCheckViews(APIView):
                 compared_text = extract_matching_paragraph(result["url"], search_text)
                 sbert_score = similarity.sbert_similarity([search_text, compared_text])[0][0] * 100
                 tfidf_score = similarity.tfidf_cosine_similarity([search_text, compared_text])[0][0] * 100
-               
+                
                 common_data = find_common_text(search_text, compared_text)
-
 
                 similarity_results.append({
                     "title": result["title"],
                     "url": result["url"],
-                    "sbert_similarity": f"{sbert_score}%",  
-                    "tfidf_similarity": f"{tfidf_score}%",
+                    "sbert_similarity": f"{sbert_score:.2f}%",  
+                    "tfidf_similarity": f"{tfidf_score:.2f}%",
                     "common_words": ", ".join(common_data["common_words"]),
                     "common_sentences": "\n".join(common_data["common_sentences"]),
                     "common_paragraphs": "\n\n".join(common_data["common_paragraphs"]),
@@ -463,6 +473,9 @@ from rest_framework import status
 from PyPDF2 import PdfReader
 from .models import QnA, Question, Answer
 from django.conf import settings
+from .qna import QnA as QnAEngine
+
+qna_engine = QnAEngine()
 
 class GenerateQuestionsView(APIView):
     permission_classes = []
@@ -481,7 +494,7 @@ class GenerateQuestionsView(APIView):
         if not text:
             return Response({"error": "No text provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # إنشاء جلسة جديدة
+        # ✅ إنشاء جلسة جديدة
         session = QnA.objects.create(user=user, text=text)
         questions = qna_engine.generate_questions(text, num_questions)
 
@@ -490,44 +503,37 @@ class GenerateQuestionsView(APIView):
             question = Question.objects.create(qna_session=session, text=question_text)
             created_questions.append({"id": question.id, "text": question.text})
 
-        # جلب أول سؤال
-        first_question = created_questions[0] if created_questions else None
-
         return Response({
-            "session_id": session.id,
-            "questions": created_questions,
-            "first_question": first_question  # إرسال أول سؤال مباشرة
+            "questions": created_questions  # ✅ إرجاع كل سؤال مع الـ ID الخاص به
         }, status=status.HTTP_201_CREATED)
+
 
 
 class EvaluateAnswersView(APIView):
     permission_classes = []
 
     def post(self, request, *args, **kwargs):
-        question_id = request.data.get("question_id")
-        user_answer = request.data.get("answer")
+        user = request.user if request.user.is_authenticated else None
 
-        if not question_id or not user_answer:
-            return Response({"error": "Missing question_id or answer"}, status=status.HTTP_400_BAD_REQUEST)
+        # ✅ البحث عن أول سؤال لم يتم إجابته في الجلسة
+        question = Question.objects.filter(qna_session__user=user).exclude(answers__isnull=False).first()
 
-        try:
-            question = Question.objects.get(id=question_id)
-        except Question.DoesNotExist:
-            return Response({"error": "Question not found"}, status=status.HTTP_404_NOT_FOUND)
+        if not question:
+            return Response({"error": "No active question found"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # تقييم الإجابة باستخدام AI
+        user_answer = request.data.get("answer", "").strip()
+        if not user_answer:
+            return Response({"error": "Answer cannot be empty"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # ✅ تقييم الإجابة
         evaluation = qna_engine.evaluate_answers([question.text], [user_answer], question.qna_session.text)[0]
         _, score, feedback = evaluation
 
-        # تحديد صحة الإجابة (is_correct = None افتراضيًا)
-        is_correct = None
-        if score > 5:
-            is_correct = True
-        elif score <= 5:
-            is_correct = False
+        # ✅ تحديد صحة الإجابة
+        is_correct = score > 5
 
-        # تخزين الإجابة
-        answer = Answer.objects.create(
+        # ✅ حفظ الإجابة
+        Answer.objects.create(
             question=question,
             user_answer=user_answer,
             is_correct=is_correct,
@@ -535,13 +541,23 @@ class EvaluateAnswersView(APIView):
             feedback=feedback
         )
 
-        return Response({
+        # ✅ جلب السؤال التالي في الجلسة
+        next_question = Question.objects.filter(qna_session=question.qna_session, id__gt=question.id).first()
+
+        response_data = {
             "question": question.text,
-            "user_answer": answer.user_answer,
-            "is_correct": answer.is_correct,
-            "score": answer.score,
-            "feedback": answer.feedback
-        }, status=status.HTTP_200_OK)
+            "user_answer": user_answer,
+            "is_correct": is_correct,
+            "score": score,
+            "feedback": feedback
+        }
+
+        if next_question:
+            response_data["next_question"] = next_question.text
+        else:
+            response_data["message"] = "No more questions in this session"
+
+        return Response(response_data, status=status.HTTP_200_OK)
 
 ##################################################3##
 

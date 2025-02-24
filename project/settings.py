@@ -33,8 +33,8 @@ SECRET_KEY = 'django-insecure-!m9=h&k%*x23lk_jdo$#yhaiyhy(x%zx$(f04*e(w1-+&eyt4f
 DEBUG = True
 
 # ALLOWED_HOSTS = ['*']
-ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "192.168.251.66", "192.168.251.74",'.railway.app']
-CSRF_TRUSTED_ORIGINS = ['http://192.168.251.74:3000', 'http://192.168.251.74:8000']
+ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "192.168.1.10", "192.168.1.11",'.railway.app']
+CSRF_TRUSTED_ORIGINS = ['http://192.168.1.11:3000', 'http://192.168.1.11:8000']
 CORS_ALLOW_ALL_ORIGINS = True  # السماح لجميع المواقع
 CORS_ALLOW_CREDENTIALS = True  # السماح باستخدام الكوكيز والتوكن
 
@@ -110,9 +110,8 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://192.168.251.74:3000",  # ✅ السماح بالـ Frontend
+    "http://192.168.1.11:3000",  # ✅ السماح بالـ Frontend
 ]
-
 
 
 

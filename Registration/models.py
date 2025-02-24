@@ -125,14 +125,16 @@ class SimilarityResult(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True)
     input_text = models.TextField(default="", blank=True)
     compared_text = models.TextField()
-    similarity_score = models.FloatField()
+    sbert_similarity = models.FloatField(default=0.0)  # ✅ حفظ SBERT
+    tfidf_similarity = models.FloatField(default=0.0)
     common_words = models.TextField()
     common_sentences = models.TextField()
     common_paragraphs = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Similarity {self.similarity_score} - {self.user.username if self.user else 'Anonymous'}"
+        return f"Similarity SBERT: {self.sbert_similarity}% - TF-IDF: {self.tfidf_similarity}% - {self.user.username if self.user else 'Anonymous'}"
+
 
 
 from django.db import models
