@@ -1,4 +1,3 @@
-# qna.py
 from typing import List, Tuple
 from typing_extensions import TypedDict
 import json

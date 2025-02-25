@@ -1,5 +1,4 @@
 from typing import List, Tuple
-from .utils import process_in_batches
 import transformers
 import spacy
 from collections import Counter
@@ -15,13 +14,26 @@ class Summary:
         )
         self.nlp = spacy.load("en_core_web_sm")
 
-    @process_in_batches
     def bart_summarize(
-        self, text: str, min_length: int = 5, max_length: int = 20
+        self,
+        text: str,
+        min_length: int = 5,
+        max_length: int = 64,
+        percentage: float = 0.40,
     ) -> List[str]:
         """
         Summarize the input text using BART.
         """
+        doc = self.nlp(text)
+
+        tokens = [token.text for token in doc]
+        num_tokens = len(tokens)
+
+        if not max_length or max_length > num_tokens:
+            max_length = int(num_tokens * percentage)
+
+        min_length = max(5, int(max_length * 0.5))
+
         return self.summarizer(text, min_length=min_length, max_length=max_length)[0]
 
     def spacy_extract_keywords(

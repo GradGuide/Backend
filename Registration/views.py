@@ -511,7 +511,6 @@ class GenerateQuestionsView(APIView):
 
 class EvaluateAnswersView(APIView):
     permission_classes = []
-
     def post(self, request, *args, **kwargs):
         user = request.user if request.user.is_authenticated else None
 

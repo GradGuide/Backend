@@ -2,7 +2,7 @@ from typing import List, Optional, Any
 import google.generativeai as genai
 import os
 
-from .utils import process_in_batches
+from .utils import smart_split
 
 
 class LLM:
@@ -63,11 +63,10 @@ class LLM:
 
         return response
 
-    @process_in_batches
     def summarize(
         self,
         input_text: str,
-        max_tokens: int = 64,
+        max_tokens: int = 100,
         temperature: float = 0.3,
         additional_instructions: Optional[List[str]] = None,
         language: Optional[str] = None,
@@ -84,17 +83,35 @@ class LLM:
         temperature : float, optional
             The creativity level for the response.
         """
-        system_instruction = f"You are an AI that provides summaries of the input text only using {max_tokens} words."
-        return self._generate_content(
-            input_text,
-            system_instruction,
-            max_tokens,
-            temperature,
-            additional_instructions,
-            language,
-        ).text.strip()
+        system_instruction = (
+            "You are an AI Assistant, Your only job is to provide summary for the text given, you should give no hints that you are an AI. "
+            "You do not explain the document/text, you just output the summary."
+            "and do not ever interact with the user. For example:\n Text: [very long text]\n[Summary]\n"
+            "Can you provide a comprehensive summary of the given text? The "
+            "summary should cover all the key points and main ideas presented in the original text, "
+            "while also condensing the information into a concise and easy-to-understand format. "
+            "Please ensure that the summary includes relevant details and examples that support the main ideas, "
+            "while avoiding any unnecessary information or repetition. The length of the summary should be appropriate "
+            "for the length and complexity of the original text, providing a clear and "
+            "accurate overview without omitting any important information. Use bullet points and headers if needed for clarity."
+        )
 
-    @process_in_batches
+        split_texts = smart_split(input_text, max_tokens)
+
+        summaries = [
+            self._generate_content(
+                chunk,
+                system_instruction,
+                max_tokens,
+                temperature,
+                additional_instructions,
+                language,
+            ).text.strip()
+            for chunk in split_texts
+        ]
+
+        return " ".join(summaries)
+
     def answer_question(
         self,
         question: str,
@@ -104,6 +121,9 @@ class LLM:
         language: Optional[str] = None,
     ) -> str:
         """
+        FIXME: DO NOT USE THIS FUNCTION IT DOES NOT WORK, REWRITE TO SUPPORT
+        SPLITTING IN CHUNKS.
+
         Answers a given question based on the provided context.
 
         Parameters:
@@ -121,6 +141,7 @@ class LLM:
             "You are an AI assistant that answers questions. Answer the following question based only "
             "on the context provided and nothing more. Keep the answer on point and short."
         )
+
         return self._generate_content(
             f"Question:\n```{question}\n```",
             system_instruction,
@@ -130,11 +151,10 @@ class LLM:
             language=language,
         ).text.strip()
 
-    @process_in_batches
     def grammar_corrector(
         self,
         text: str,
-        max_tokens: int = 64,
+        max_tokens: int = 100,
         temperature: float = 0.3,
         additional_instructions: Optional[List[str]] = None,
         language: Optional[str] = None,
@@ -152,14 +172,33 @@ class LLM:
             The creativity level for the response.
         """
         system_instruction = (
-            "You are an AI assistant that corrects grammar and spelling. Rewrite the text and change "
-            "what's necessary with no errors, without any explanation. detect the language and correct it in siad language."
+            "I want you to act as an expert in Language arts with advanced experience in proofreading, "
+            "editing, spelling, grammar, proper sentence structure, and punctuation. "
+            "You have critical thinking skills with the ability to analyze and evaluate information, arguments, "
+            "and ideas, and to make logical and well-supported judgments and decisions. "
+            "You will be provided content from a professional business to proofread in the form of emails, "
+            "texts, and instant messages to make sure they are error-free before sending. "
+            "Your approach would be to carefully read through each communication to identify any errors, "
+            "inconsistencies, or areas where clarity could be improved. Your overall goal is to ensure "
+            "communications are error-free, clear, and effective in achieving their intended purpose. "
+            "You will make appropriate updates to increase readability, professionalism, and cohesiveness, "
+            "while also ensuring that your intended meaning is conveyed accurately. "
+            "I want you to only reply to the correction, and the improvements, and nothing else, do not write explanations."
+            "detect the language and correct it in said language."
         )
-        return self._generate_content(
-            f"\n```{text}```",
-            system_instruction,
-            max_tokens,
-            temperature,
-            additional_instructions,
-            language,
-        ).text.strip()
+
+        split_texts = smart_split(text, max_tokens)
+
+        corrected_texts = [
+            self._generate_content(
+                chunk,
+                system_instruction,
+                max_tokens,
+                temperature,
+                additional_instructions,
+                language,
+            ).text.strip()
+            for chunk in split_texts
+        ]
+
+        return " ".join(corrected_texts)

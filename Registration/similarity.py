@@ -5,10 +5,7 @@ from transformers import BertTokenizer, BertModel
 from sentence_transformers import SentenceTransformer
 from nltk.tokenize import word_tokenize, sent_tokenize, blankline_tokenize
 import torch
-import nltk
 import warnings
-
-from .utils import process_in_batches
 
 warnings.filterwarnings("ignore")
 
@@ -31,7 +28,6 @@ class Similarity:
         )
         return tokens["input_ids"], tokens["attention_mask"]
 
-    @process_in_batches
     def bert_similarity(self, sentences: List[str]) -> List[List[float]]:
         """
         Compute similarity using BERT embeddings for two sentences.
