@@ -311,9 +311,8 @@ from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import PyPDF2
 from .models import SimilarityResult
-from .serializers import SimilarityResultSerializer
 from .similarity import Similarity, find_common_text
-from .scraper import fetch_search_results, extract_matching_paragraph
+from .scraper import fetch_search_results, extract_relevant_fields,extract_text_from_urls
 
 class SimilarityCheckViews(APIView):
     permission_classes = ()
@@ -371,33 +370,77 @@ class SimilarityCheckViews(APIView):
                 "common_sentences": similarity_result.common_sentences,
                 "common_paragraphs": similarity_result.common_paragraphs,
             })
+            
+            return JsonResponse({"results": similarity_results}, status=200)  
 
-        # ✅ إذا كان هناك **نص واحد فقط**، نستخدم Web Scraping
         else:
-            search_text = text1 if text1 else text2  # نحدد أي النصوص موجودة
-            search_results = fetch_search_results("http://localhost:8080/search", search_text)
+            text = text1 if text1 else text2
 
-            if not search_results:
-                return Response({"error": "لم يتم العثور على نتائج"}, status=status.HTTP_404_NOT_FOUND)
+            if not text:
+                return JsonResponse({"error": "Please send valid text for comparison"}, status=400)
 
-            for result in search_results:
-                compared_text = extract_matching_paragraph(result["url"], search_text)
-                sbert_score = similarity.sbert_similarity([search_text, compared_text])[0][0] * 100
-                tfidf_score = similarity.tfidf_cosine_similarity([search_text, compared_text])[0][0] * 100
+            search_results = fetch_search_results("http://localhost:8080/search", text)
+            extracted_data = extract_relevant_fields(search_results)
+            urls = list(extracted_data["results"].values())
+
+            # استخراج النصوص من الروابط إذا كانت موجودة
+            extracted_texts = {}
+            if urls:
+                extracted_texts = extract_text_from_urls(urls[:3])
+
+            if not extracted_texts:
+                return JsonResponse({"error": "لم يتم العثور على نصوص صالحة للمقارنة."}, status=400)
+
+            similarity_checker = Similarity()
+            results = []
+
+            # معالجة نتائج النصوص المستخرجة من الروابط
+            for url, extracted_text in extracted_texts.items():
+                if extracted_text:
+                    sbert_similarity_score = similarity_checker.sbert_similarity([text, extracted_text])[0][0] * 100
+                    tfidf_similarity_score = similarity_checker.tfidf_cosine_similarity([text, extracted_text])[0][0] * 100
+                    common_data = find_common_text(text, extracted_text)
+
+                    results.append({
+                        "title": extracted_data["results"].get(url, "Address not available"),
+                        "url": url,
+                        "tfidf": f"{tfidf_similarity_score:.2f}",
+                        "sbert": f"{sbert_similarity_score:.2f}",
+                        "common_words": common_data["common_words"],
+                        "common_sentences": common_data["common_sentences"],
+                        "common_paragraphs": common_data["common_paragraphs"]
+                    })
+
+            return JsonResponse({"results": results}, status=200)  # أضف هذا السطر
+
+
+
+
+        # else:
+        #     search_text = text1 if text1 else text2  
+        #     search_results = fetch_search_results("http://localhost:8080/search", search_text)
+
+        #     if not search_results:
+        #         return Response({"error": "لم يتم العثور على نتائج"}, status=status.HTTP_404_NOT_FOUND)
+
+        #     for result in search_results:
+        #         compared_text = extract_matching_paragraph(result["url"], search_text)
+        #         sbert_score = similarity.sbert_similarity([search_text, compared_text])[0][0] * 100
+        #         tfidf_score = similarity.tfidf_cosine_similarity([search_text, compared_text])[0][0] * 100
                 
-                common_data = find_common_text(search_text, compared_text)
+        #         common_data = find_common_text(search_text, compared_text)
 
-                similarity_results.append({
-                    "title": result["title"],
-                    "url": result["url"],
-                    "sbert_similarity": f"{sbert_score:.2f}%",  
-                    "tfidf_similarity": f"{tfidf_score:.2f}%",
-                    "common_words": ", ".join(common_data["common_words"]),
-                    "common_sentences": "\n".join(common_data["common_sentences"]),
-                    "common_paragraphs": "\n\n".join(common_data["common_paragraphs"]),
-                })
+        #         similarity_results.append({
+        #             "title": result["title"],
+        #             "url": result["url"],
+        #             "sbert_similarity": f"{sbert_score:.2f}%",  
+        #             "tfidf_similarity": f"{tfidf_score:.2f}%",
+        #             "common_words": ", ".join(common_data["common_words"]),
+        #             "common_sentences": "\n".join(common_data["common_sentences"]),
+        #             "common_paragraphs": "\n\n".join(common_data["common_paragraphs"]),
+        #         })
 
-        return Response(similarity_results, status=status.HTTP_200_OK)
+        # return Response(similarity_results, status=status.HTTP_200_OK)
 
 
 
@@ -406,7 +449,7 @@ from .models import GrammarCorrectionHistory
 from .serializers import GrammarCorrectionHistorySerializer
 api_key = os.getenv("GEMINI_API_KEY")
 if not api_key:
-    raise ValueError("مفتاح API غير موجود في البيئة")
+    raise ValueError("API key not found in environment")
 
 llm = LLM(api_key=api_key)
 gc = GrammarCorrector()
@@ -414,7 +457,6 @@ gc = GrammarCorrector()
 class GrammarCorrectionAPIView(APIView):
     permission_classes = [AllowAny]
     def get(self, request):
-        # إذا كان المستخدم مسجل دخول، جلب سجلاته فقط، وإلا جلب السجلات العامة
         if request.user.is_authenticated:
             histories = GrammarCorrectionHistory.objects.filter(user=request.user)
         else:
@@ -423,9 +465,8 @@ class GrammarCorrectionAPIView(APIView):
         serializer = GrammarCorrectionHistorySerializer(histories, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
-
     def extract_text_from_pdf(self, pdf_file):
-        """استخراج النص من ملف PDF المحمّل"""
+        """Extract text from uploaded PDF file"""
         text = ""
         try:
             pdf_bytes = BytesIO(pdf_file.read()) 
@@ -494,7 +535,6 @@ class GenerateQuestionsView(APIView):
         if not text:
             return Response({"error": "No text provided"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # ✅ إنشاء جلسة جديدة
         session = QnA.objects.create(user=user, text=text)
         questions = qna_engine.generate_questions(text, num_questions)
 
@@ -504,7 +544,7 @@ class GenerateQuestionsView(APIView):
             created_questions.append({"id": question.id, "text": question.text})
 
         return Response({
-            "questions": created_questions  # ✅ إرجاع كل سؤال مع الـ ID الخاص به
+            "questions": created_questions  
         }, status=status.HTTP_201_CREATED)
 
 
@@ -514,7 +554,6 @@ class EvaluateAnswersView(APIView):
     def post(self, request, *args, **kwargs):
         user = request.user if request.user.is_authenticated else None
 
-        # ✅ البحث عن أول سؤال لم يتم إجابته في الجلسة
         question = Question.objects.filter(qna_session__user=user).exclude(answers__isnull=False).first()
 
         if not question:
@@ -524,14 +563,11 @@ class EvaluateAnswersView(APIView):
         if not user_answer:
             return Response({"error": "Answer cannot be empty"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # ✅ تقييم الإجابة
         evaluation = qna_engine.evaluate_answers([question.text], [user_answer], question.qna_session.text)[0]
         _, score, feedback = evaluation
 
-        # ✅ تحديد صحة الإجابة
         is_correct = score > 5
 
-        # ✅ حفظ الإجابة
         Answer.objects.create(
             question=question,
             user_answer=user_answer,
@@ -540,7 +576,6 @@ class EvaluateAnswersView(APIView):
             feedback=feedback
         )
 
-        # ✅ جلب السؤال التالي في الجلسة
         next_question = Question.objects.filter(qna_session=question.qna_session, id__gt=question.id).first()
 
         response_data = {
@@ -566,19 +601,19 @@ class SummarizeTextView(APIView):
     permission_classes = [AllowAny]
 
     def extract_text_from_pdf(self, pdf_file):
-        """استخراج النص من ملف PDF"""
+        """Extract text from PDF file"""
         text = ""
         try:
             with fitz.open(stream=pdf_file.read(), filetype="pdf") as doc:
                 for page in doc:
                     text += page.get_text("text") + "\n"
         except Exception as e:
-            raise ValueError(f"فشل في استخراج النص من PDF: {str(e)}")
+            raise ValueError(f"Failed to extract text from PDF: {str(e)}")
         return text.strip()
 
     def post(self, request):
         """
-        تلخيص النص سواء كان نصًا مكتوبًا أو مستخرجًا من ملف PDF.
+        Summarize text, whether written or extracted from a PDF file.
         """
         text = request.data.get("text", "")
         pdf_file = request.FILES.get("file")
@@ -590,11 +625,11 @@ class SummarizeTextView(APIView):
                 return Response({"error": str(e)}, status=400)
 
         if not text:
-            return Response({"error": "لم يتم توفير نص أو PDF صالح."}, status=400)
+            return Response({"error": "No valid text or PDF provided."}, status=400)
 
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
-            return Response({"error": "مفتاح API غير موجود في البيئة"}, status=500)
+            return Response({"error": "API key not found in environment"}, status=500)
 
         llm = LLM(api_key=api_key)
 
@@ -619,7 +654,7 @@ class SummarizeTextView(APIView):
         summarized_text = llm.summarize(text, language=language).strip()
         
         if not summarized_text:
-            return Response({"error": "فشل التلخيص أو النتيجة فارغة."}, status=400)
+            return Response({"error": "Summarization failed or result is empty."}, status=400)
 
         summarization.summary_text = summarized_text
         summarization.save()
@@ -635,7 +670,7 @@ class SummarizeTextView(APIView):
         try:
             pdf_file = HTML(string=html_content).write_pdf()
         except Exception as e:
-            return Response({"error": f"فشل في إنشاء PDF: {str(e)}"}, status=500)
+            return Response({"error": f"Failed to create PDF: {str(e)}"}, status=500)
 
         with open(pdf_path, "wb") as f:
             f.write(pdf_file)

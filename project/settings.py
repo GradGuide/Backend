@@ -33,13 +33,12 @@ SECRET_KEY = 'django-insecure-!m9=h&k%*x23lk_jdo$#yhaiyhy(x%zx$(f04*e(w1-+&eyt4f
 DEBUG = True
 
 # ALLOWED_HOSTS = ['*']
-ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "192.168.1.10", "192.168.1.11",'.railway.app']
-CSRF_TRUSTED_ORIGINS = ['http://192.168.1.11:3000', 'http://192.168.1.11:8000']
-CORS_ALLOW_ALL_ORIGINS = True  # السماح لجميع المواقع
-CORS_ALLOW_CREDENTIALS = True  # السماح باستخدام الكوكيز والتوكن
+ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "192.168.104.66", "192.168.104.74",'.railway.app']
+CSRF_TRUSTED_ORIGINS = ['http://192.168.104.74:3000', 'http://192.168.104.74:8000']
+CORS_ALLOW_ALL_ORIGINS = True  
+CORS_ALLOW_CREDENTIALS = True 
 
 CORS_ALLOW_HEADERS = ["*"]
-
 
 
 # Application definition
@@ -63,7 +62,7 @@ INSTALLED_APPS = [
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.SessionAuthentication',  # أو إذا كنت تستخدم JWT:
+        'rest_framework.authentication.SessionAuthentication', 
         'rest_framework.authentication.TokenAuthentication',
         'rest_framework_simplejwt.authentication.JWTAuthentication',
 
@@ -74,7 +73,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(days=60),  # مدة صلاحية التوكن
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=60),
     'REFRESH_TOKEN_LIFETIME': timedelta(days=30),
     'AUTH_HEADER_TYPES': ('Bearer',),
 }
@@ -110,7 +109,7 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://192.168.1.11:3000",  # ✅ السماح بالـ Frontend
+    "http://192.168.104.74:3000", 
 ]
 
 
@@ -146,15 +145,14 @@ WSGI_APPLICATION = 'project.wsgi.application'
 import os
 
 
-# إعداد قاعدة البيانات باستخدام المتغيرات البيئية
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'gradeguide',  # اسم قاعدة البيانات
-        'USER': 'postgres',  # اسم المستخدم
-        'PASSWORD': '123456',  # كلمة المرور
-        'HOST': 'localhost',  # الخادم
-        'PORT': '5432',  # المنفذ
+        'NAME': 'gradeguide',  
+        'USER': 'postgres',  
+        'PASSWORD': '123456', 
+        'HOST': 'localhost',  
+        'PORT': '5432',  
     },
 }
 
@@ -211,20 +209,17 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# إعدادات البريد الإلكتروني
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'abdelrahmanganem122@gmail.com'  # بريدك الإلكتروني
-EMAIL_HOST_PASSWORD = 'rvwc azsj blmf wzjx'   # كلمة المرور لبريدك الإلكتروني
+EMAIL_HOST_USER = 'abdelrahmanganem122@gmail.com'  
+EMAIL_HOST_PASSWORD = 'rvwc azsj blmf wzjx'   
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-# الحد الأقصى لحجم الملف في الذاكرة (بالبايت) قبل استخدام الملفات المؤقتة
-FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760    # بلا حد معين (إزالة القيود)
+FILE_UPLOAD_MAX_MEMORY_SIZE = 10485760   
 
-# المسار المؤقت للملفات عند رفع ملفات كبيرة
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -236,8 +231,6 @@ CORS_ALLOW_CREDENTIALS = True
 import os
 from dotenv import load_dotenv
 
-# تحميل المتغيرات من ملف .env
 load_dotenv()
 
-# الآن يمكنك الوصول إلى المتغيرات من البيئة
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')

@@ -37,8 +37,8 @@ class User(AbstractBaseUser):
         message='The email must be a Gmail or Outlook address.',
         code='invalid_email'
     )
-    is_staff = models.BooleanField(default=False)  # يحدد إن كان المستخدم موظفًا في النظام
-    is_superuser = models.BooleanField(default=False)  # يحدد إن كان المستخدم أدمن
+    is_staff = models.BooleanField(default=False) 
+    is_superuser = models.BooleanField(default=False) 
     is_active = models.BooleanField(default=True)
 
     objects = UserManager()
@@ -47,11 +47,11 @@ class User(AbstractBaseUser):
     REQUIRED_FIELDS = []
 
     def has_perm(self, perm, obj=None):
-        """تحقق مما إذا كان المستخدم يملك الصلاحية المحددة"""
+        """Check if the user has the specified permission"""
         return self.is_superuser
 
     def has_module_perms(self, app_label):
-        """تحقق مما إذا كان المستخدم يملك صلاحيات الدخول إلى أي تطبيق معين"""
+        """Check if the user has access permissions to any particular application"""
         return self.is_superuser
 
     first_name = models.CharField(max_length=255)
@@ -125,7 +125,7 @@ class SimilarityResult(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True)
     input_text = models.TextField(default="", blank=True)
     compared_text = models.TextField()
-    sbert_similarity = models.FloatField(default=0.0)  # ✅ حفظ SBERT
+    sbert_similarity = models.FloatField(default=0.0)  
     tfidf_similarity = models.FloatField(default=0.0)
     common_words = models.TextField()
     common_sentences = models.TextField()
@@ -142,7 +142,7 @@ from django.conf import settings
 
 class QnA(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
-    text = models.TextField()  # النص الأصلي أو المستخرج من PDF
+    text = models.TextField()  
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -158,7 +158,7 @@ class Question(models.Model):
 class Answer(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE, related_name="answers")
     user_answer = models.TextField()
-    is_correct = models.BooleanField(null=True, blank=True)  # الآن يمكن أن يكون فارغًا
+    is_correct = models.BooleanField(null=True, blank=True)
     score = models.IntegerField()
     feedback = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,50 +1,28 @@
 import requests
-from bs4 import BeautifulSoup
-import re
+import json
+from markitdown import MarkItDown
+import io
 
 def fetch_search_results(url, query):
-    """إرسال طلب GET لاسترجاع أول 3 نتائج بحث بصيغة JSON."""
-    try:
-        response = requests.get(url, params={"q": query, "format": "json"}, timeout=10)
-        response.raise_for_status()
-        data = response.json().get("results", [])
-        return [{"title": item.get("title", "عنوان غير متوفر"), "url": item.get("url", "")} for item in data[:3]]
-    except requests.exceptions.RequestException as e:
-        print(f"❌ خطأ أثناء جلب نتائج البحث: {e}")
-        return []
+    """Send a GET request to the search API and return the response data."""
+    response = requests.get(url, params={"q": query, "format": "json"})
+    return response.json()
 
-def highlight_match(paragraph, query):
-    """تلوين الكلمات المتشابهة بين الفقرة ونص البحث باللون الأحمر."""
-    words = query.split()
-    pattern = re.compile(r'\b(' + '|'.join(re.escape(word) for word in words) + r')\b', re.IGNORECASE)
-    highlighted = pattern.sub(r'\033[91m\1\033[0m', paragraph)
-    return highlighted
+def extract_relevant_fields(data):
+    """Extract all titles and URLs from the API response."""
+    return {
+        "results": {
+            result["title"]: result["url"]
+            for result in data.get("results", [])
+        }
+    }
 
-def extract_matching_paragraph(url, query):
-    """جلب الفقرة الأكثر تشابهًا مع نص البحث من صفحة الويب."""
-    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
-    try:
-        response = requests.get(url, headers=headers, timeout=10)
-        response.raise_for_status()
-        
-        soup = BeautifulSoup(response.text, "html.parser")
-        paragraphs = soup.find_all("p")
-
-        best_paragraph = None
-        max_matches = 0
-
-        for p in paragraphs:
-            text = p.get_text(strip=True)
-            matches = sum(1 for word in query.split() if word.lower() in text.lower())
-
-            if matches > max_matches:
-                max_matches = matches
-                best_paragraph = text
-        
-        if best_paragraph:
-            return highlight_match(best_paragraph, query)
-        return "❌ لم يتم العثور على فقرة متطابقة"
-    
-    except requests.exceptions.RequestException as e:
-        print(f"⚠️ خطأ أثناء جلب البيانات من {url}: {e}")
-        return "❌ تعذر جلب المحتوى"
+def extract_text_from_urls(urls):
+    """Extract text content from a list of URLs using MarkItDown."""
+    md = MarkItDown()
+    extracted_texts = {}
+    for url in urls:
+        text = bytes(requests.get(url).text, 'utf-8')
+        extracted = md.convert_stream(io.BytesIO(text))
+        extracted_texts[url] = extracted.text_content
+    return extracted_texts
