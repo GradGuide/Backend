@@ -113,6 +113,8 @@ class Summarization(models.Model):
     summary_text = models.TextField(default="")
     pdf_file = models.FileField(upload_to="summaries/", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True,null=True)
+    sbert_score = models.FloatField(null=True, blank=True)
+    tfidf_score = models.FloatField(null=True, blank=True)
 
 
     def __str__(self):

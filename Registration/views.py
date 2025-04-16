@@ -331,26 +331,22 @@ class SimilarityCheckViews(APIView):
                 pdf_reader = PyPDF2.PdfReader(f)
                 return " ".join(page.extract_text() for page in pdf_reader.pages if page.extract_text())
 
-        # ✅ استخراج نص من الملفين (إن وجد)
         if file1:
             text1 = extract_text_from_pdf(file1)
         if file2:
             text2 = extract_text_from_pdf(file2)
 
-        # ✅ التأكد من وجود نص لتحليل التشابه
         if not text1 and not text2:
             return Response({"error": "لا يوجد نص لتحليل التشابه"}, status=status.HTTP_400_BAD_REQUEST)
 
         similarity = Similarity()
         similarity_results = []
 
-        # ✅ إذا كان هناك **نصين**، نحسب التشابه بينهم مباشرة
         if text1 and text2:
             sbert_score = similarity.sbert_similarity([text1, text2])[0][1] * 100
             tfidf_score = similarity.tfidf_cosine_similarity([text1, text2])[0][1] * 100
             common_data = find_common_text(text1, text2)
             
-            # ✅ حفظ النتيجة في قاعدة البيانات
             similarity_result = SimilarityResult.objects.create(
                 user=user,
                 input_text=text1,
@@ -383,7 +379,6 @@ class SimilarityCheckViews(APIView):
             extracted_data = extract_relevant_fields(search_results)
             urls = list(extracted_data["results"].values())
 
-            # استخراج النصوص من الروابط إذا كانت موجودة
             extracted_texts = {}
             if urls:
                 extracted_texts = extract_text_from_urls(urls[:3])
@@ -394,7 +389,6 @@ class SimilarityCheckViews(APIView):
             similarity_checker = Similarity()
             results = []
 
-            # معالجة نتائج النصوص المستخرجة من الروابط
             for url, extracted_text in extracted_texts.items():
                 if extracted_text:
                     sbert_similarity_score = similarity_checker.sbert_similarity([text, extracted_text])[0][0] * 100
@@ -411,7 +405,7 @@ class SimilarityCheckViews(APIView):
                         "common_paragraphs": common_data["common_paragraphs"]
                     })
 
-            return JsonResponse({"results": results}, status=200)  # أضف هذا السطر
+            return JsonResponse({"results": results}, status=200) 
 
 
 
@@ -496,17 +490,27 @@ class GrammarCorrectionAPIView(APIView):
             if len(text.split(' ')) > 20:
                corrected_text = gc.correct(text)  
             else:
-                corrected_text = llm.grammar_corrector(text) 
+                corrected_text = llm.grammar_corrector(text)
+                similarity = Similarity()
+                sbert_score = similarity.sbert_similarity([text, corrected_text])[0][1] * 100
+                tfidf_score = similarity.tfidf_cosine_similarity([text, corrected_text])[0][1] * 100
+                # common_data = find_common_text(text, corrected_text) 
  
             GrammarCorrectionHistory.objects.create(
                         user=request.user if request.user.is_authenticated else None,
                         input_text=text,
                         corrected_text=corrected_text
                     )
-            return Response({"corrected_text": corrected_text}, status=status.HTTP_200_OK)
+            return Response({
+                "corrected_text": corrected_text,
+               "sbert_similarity": f"{sbert_score:.2f}%",
+                "tfidf_similarity": f"{tfidf_score:.2f}%",
+                # "common_words":common_data['common_words'],
+                # "common_sentences":common_data['common_sentences'],
+                # "common_paragraphs":common_data['common_paragraphs']
+            }, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"error": f"An error occurred. : {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
 ####################################################
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -595,8 +599,6 @@ class EvaluateAnswersView(APIView):
 
 ##################################################3##
 
-
-
 class SummarizeTextView(APIView):
     permission_classes = [AllowAny]
 
@@ -612,15 +614,14 @@ class SummarizeTextView(APIView):
         return text.strip()
 
     def post(self, request):
-        """
-        Summarize text, whether written or extracted from a PDF file.
-        """
         text = request.data.get("text", "")
         pdf_file = request.FILES.get("file")
+        extracted_text = None
 
         if pdf_file:
             try:
-                text = self.extract_text_from_pdf(pdf_file)
+                extracted_text = self.extract_text_from_pdf(pdf_file)
+                text = extracted_text
             except ValueError as e:
                 return Response({"error": str(e)}, status=400)
 
@@ -635,6 +636,7 @@ class SummarizeTextView(APIView):
 
         detected_language = detect(text)
         language = "Arabic" if detected_language == "ar" else "French" if detected_language == "fr" else "English"
+        sbert_score = tfidf_score = 0.0
 
         summarization, created = Summarization.objects.get_or_create(
             user=request.user if request.user.is_authenticated else None,
@@ -647,16 +649,30 @@ class SummarizeTextView(APIView):
                     "summary_text": summarization.summary_text,
                     "summarization_id": summarization.id,
                     "pdf_url": summarization.pdf_file.url if summarization.pdf_file else None,
+                    "sbert_score": f"{summarization.sbert_score :.2f}%",
+                    "tfidf_score": f"{summarization.tfidf_score :.2f}%"
                 },
                 status=200,
             )
-
         summarized_text = llm.summarize(text, language=language).strip()
-        
+
         if not summarized_text:
             return Response({"error": "Summarization failed or result is empty."}, status=400)
 
+        # حدد النص الأصلي المستخدم في التشابه
+        # original_text_for_similarity = extracted_text if extracted_text else text
+
+        try:
+            similarity = Similarity()
+            sbert_score = similarity.sbert_similarity([text, summarized_text])[0][1] * 100
+            tfidf_score = similarity.tfidf_cosine_similarity([text, summarized_text])[0][1] * 100
+        except Exception as e:
+            sbert_score = tfidf_score = 0
+            print("Error calculating similarity:", e)
+
         summarization.summary_text = summarized_text
+        summarization.sbert_score = sbert_score
+        summarization.tfidf_score = tfidf_score
         summarization.save()
 
         file_name = f"summaries/pdf/{summarization.id}.pdf"
@@ -666,27 +682,25 @@ class SummarizeTextView(APIView):
         html_content = render_to_string(
             "summary_template.html", {"summarized_text": summarized_text}
         )
-
         try:
-            pdf_file = HTML(string=html_content).write_pdf()
+            pdf_data = HTML(string=html_content).write_pdf()
+            with open(pdf_path, "wb") as f:
+                f.write(pdf_data)
+
+            summarization.pdf_file = file_name
+            summarization.save()
         except Exception as e:
             return Response({"error": f"Failed to create PDF: {str(e)}"}, status=500)
-
-        with open(pdf_path, "wb") as f:
-            f.write(pdf_file)
-
-        summarization.pdf_file = file_name
-        summarization.save()
 
         return Response(
             {
                 "summary_text": summarized_text,
                 "summarization_id": summarization.id,
                 "pdf_url": pdf_url,
+                "sbert_score": f"{sbert_score:.2f}%",
             },
             status=200,
-        )        ##################################################################
-    
+        )
 
 
-    
+
