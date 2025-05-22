@@ -19,7 +19,7 @@ from django.urls import path,include
 from django.conf import settings
 from django.conf.urls.static import static
 from Registration.views import  RegisterView,SummarizeTextView,User_account_View ,SimilarityCheckViews,EvaluateAnswersView,GenerateQuestionsView,GrammarCorrectionAPIView
-# from rest_framework_simplejwt.views import TokenRefreshView
+from rest_framework_simplejwt.views import TokenRefreshView
 
 
 urlpatterns = [
@@ -27,15 +27,12 @@ urlpatterns = [
     path('', include('Registration.urls')),
     path('api/signup/', RegisterView.as_view(), name='signup'),
     path('api/login/', User_account_View.as_view(), name='login'),
-    # path('token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
+    path('api/token/refresh/', TokenRefreshView.as_view(), name='token-refresh'),
     path('api/summarize/', SummarizeTextView.as_view(), name='summarize'),
-    # path('api/compare-research-papers/', SimilarityCheckView.as_view(), name='check-paper'),
     path('api/check/', SimilarityCheckViews.as_view(), name='check-paper'),
-    # path('api/compare-research/', WebSimilarityCheckView.as_view(), name='check-paper'),
     path('api/check-grammer/', GrammarCorrectionAPIView.as_view(), name='check-grammer'),
     path('api/qna/', GenerateQuestionsView.as_view(), name='generate_questions'),
-    path('api/eva/', EvaluateAnswersView.as_view(), name='evaluate_answers'),  # ✅ تأكد من التطابق التام
-    # path('api/validate-answers/<int:pk>/', ValidateAnswersAPIView.as_view(), name='QNA'),
+    path('api/eva/', EvaluateAnswersView.as_view(), name='evaluate_answers'), 
 ]
 if settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

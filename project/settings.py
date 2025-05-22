@@ -31,10 +31,8 @@ SECRET_KEY = 'django-insecure-!m9=h&k%*x23lk_jdo$#yhaiyhy(x%zx$(f04*e(w1-+&eyt4f
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-
-# ALLOWED_HOSTS = ['*']
-ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "192.168.104.66", "192.168.104.74",'.railway.app']
-CSRF_TRUSTED_ORIGINS = ['http://192.168.104.74:3000', 'http://192.168.104.74:8000']
+ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "192.168.143.66", "192.168.143.74",'.railway.app']
+CSRF_TRUSTED_ORIGINS = ['http://192.168.143.74:3000', 'http://192.168.143.74:9000']
 CORS_ALLOW_ALL_ORIGINS = True  
 CORS_ALLOW_CREDENTIALS = True 
 
@@ -56,9 +54,9 @@ INSTALLED_APPS = [
     'rest_framework.authtoken', 
     'Registration.apps.RegistrationConfig',
     'corsheaders',
+    'phonenumber_field',
 
 ]
-
 
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
@@ -109,7 +107,7 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
-    "http://192.168.104.74:3000", 
+    "http://192.168.143.74:3000", 
 ]
 
 
@@ -166,7 +164,6 @@ DATABASES = {
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 # settings.py
-from django.contrib.auth.password_validation import MinimumLengthValidator, CommonPasswordValidator
 
 AUTH_PASSWORD_VALIDATORS = [
     {
@@ -208,12 +205,11 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'abdelrahmanganem122@gmail.com'  
+EMAIL_HOST_USER = 'gradeguide25@gmail.com'  
 EMAIL_HOST_PASSWORD = 'rvwc azsj blmf wzjx'   
 
 MEDIA_URL = '/media/'
