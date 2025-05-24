@@ -30,6 +30,9 @@ from .llm import LLM
 import os
 from weasyprint import HTML
 from langdetect import detect
+api_key = os.getenv("GEMINI_API_KEY")
+if not api_key:
+    raise ValueError("API key not found in environment")
 
 class RegisterView(APIView):
     permission_classes = [AllowAny]
@@ -87,22 +90,22 @@ class User_account_View(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
 
     def post(self, request):
-        email = request.data.get('email')
-        password = request.data.get('password')
-        
-        user = User.objects.filter(email=email).first()
-        
-        if user is None or not user.check_password(password):
-            return Response({"detail": "Invalid email or password"}, status=status.HTTP_400_BAD_REQUEST)
-        user.save()
+            email = request.data.get('email')
+            password = request.data.get('password')
 
-      
-        refresh = RefreshToken.for_user(user)
-        return Response({
-            "access": str(refresh.access_token),
-            "refresh": str(refresh),
-            "detail": "Login successful"
-        }, status=status.HTTP_200_OK)
+            user = User.objects.filter(email=email).first()
+
+            if user is None or not user.check_password(password):
+                return Response({"detail": "Invalid email or password"}, status=status.HTTP_400_BAD_REQUEST)
+            user.save()
+
+
+            refresh = RefreshToken.for_user(user)
+            return Response({
+                "access": str(refresh.access_token),
+                "refresh": str(refresh),
+                "detail": "Login successful"
+            }, status=status.HTTP_200_OK)
 
     def delete(self, request):
         try:
@@ -112,7 +115,7 @@ class User_account_View(APIView):
             return Response({"detail": "User account deleted successfully."}, status=status.HTTP_204_NO_CONTENT)
         except AuthenticationFailed as e:
             return Response({"detail": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
-        
+
 ######################################################################################
 
 
@@ -232,16 +235,12 @@ class SimilarityCheckViews(APIView):
                     })
 
             return JsonResponse({"results": results}, status=200)
-        
+
 
 
 
 
 ##################################Grammer correction 
-
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    raise ValueError("API key not found in environment")
 
 llm=LLM(api_key=api_key)
 gc = GrammarCorrector()
@@ -272,57 +271,76 @@ class GrammarCorrectionAPIView(APIView):
     def post(self, request):
         text = request.data.get("text", "")
         pdf_file = request.FILES.get("file")
-
-        if not text and not pdf_file:
-            return Response({"error": "You must enter text or upload a PDF file."}, status=status.HTTP_400_BAD_REQUEST)
+        extracted_text = None
 
         if pdf_file:
             try:
-                text = self.extract_text_from_pdf(pdf_file)
-                if not text:
-                    return Response({"error": "No text extracted from PDF file"}, status=status.HTTP_400_BAD_REQUEST)
+                extracted_text = self.extract_text_from_pdf(pdf_file)
+                text = extracted_text
             except ValueError as e:
-                return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-            
+                return Response({"error": str(e)}, status=400)
+
+        if not text:
+            return Response({"error": "No valid text or PDF provided."}, status=400)
+
         try:
-            if len(text.split(' ')) > 20:
-               corrected_text = gc.correct(text)  
+            if len(text.split(" ")) > 20:
+                corrected_text = gc.correct(text)
             else:
                 corrected_text = llm.grammar_corrector(text)
-                similarity = Similarity()
-                sbert_score = similarity.sbert_similarity([text, corrected_text])[0][1] * 100
 
-                if request.user.is_authenticated:
-                  user = request.user
-                else:
-                  user = None
+            similarity = Similarity()
+            sbert_score = similarity.sbert_similarity([text, corrected_text])[0][1] * 100
+            diff_result = gc.diff(text, corrected_text)
 
-# تأكد من إنشاء السجل فقط إذا كان هناك مستخدم أو كان الحقل nullable
-                if user:
-                 GrammarCorrectionHistory.objects.create(
-                        user=user,
-                        input_text=text,
-                        corrected_text=corrected_text,
-                        sbert_score=sbert_score
-                 )
-                            
- 
-            
+            user = request.user if request.user.is_authenticated else None
+
+
+            # إنشاء السجل
+            grammar_history = GrammarCorrectionHistory.objects.create(
+                user=user,
+                input_text=text,
+                corrected_text=corrected_text,
+                sbert_score=sbert_score,
+                 diff=diff_result,
+            )
+
+            # إنشاء ملف PDF بالنص المصحح
+            file_name = f"corrected/pdf/{grammar_history.id}.pdf"
+            pdf_path = os.path.join(settings.MEDIA_ROOT, file_name)
+            pdf_url = os.path.join(settings.MEDIA_URL, file_name)
+
+            html_content = render_to_string(
+                "grammer_template.html", {"corrected_text": corrected_text}
+            )
+
+            try:
+                pdf_data = HTML(string=html_content).write_pdf()
+                with open(pdf_path, "wb") as f:
+                    f.write(pdf_data)
+
+                # تحديث السجل برابط الملف
+                grammar_history.pdf_file = file_name
+                grammar_history.save()
+            except Exception as e:
+                return Response({"error": f"Failed to create PDF: {str(e)}"}, status=500)
+
             return Response({
                 "corrected_text": corrected_text,
-               "sbert_score": f"{sbert_score:.2f}",
-            
-            }, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({"error": f"An error occurred. : {str(e)}"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                "sbert_score": f"{sbert_score:.2f}",
+                "pdf_url": pdf_url,
+                "errors": diff_result
+            }, status=200)
 
+        except Exception as e:
+            return Response({"error": f"An error occurred: {str(e)}"}, status=500)
 ####################################################
 
 
 
 class GenerateQuestionsView(APIView):
     permission_classes = [AllowAny]  
-    
+
     def post(self, request, *args, **kwargs):
         user = request.user 
 
@@ -338,9 +356,9 @@ class GenerateQuestionsView(APIView):
             return Response({"error": "No text provided"}, status=status.HTTP_400_BAD_REQUEST)
 
         if request.user.is_authenticated:
-         session = QnA.objects.create(user=request.user, text=text)
+            session = QnA.objects.create(user=request.user, text=text)
         else:
-         session = QnA.objects.create(text=text)
+            session = QnA.objects.create(text=text)
 
         questions = qna_engine.generate_questions(text, num_questions)
 
@@ -356,23 +374,22 @@ class GenerateQuestionsView(APIView):
 
 
 class EvaluateAnswersView(APIView):
-    permission_classes = [AllowAny]  
-    
+    permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
         user = request.user
-
-        if user.is_authenticated:
-            question = Question.objects.filter(qna_session__user=user).exclude(answers__isnull=False).first()
-        else:
-            # لو المستخدم مش مسجل، نجيب أول سؤال غير مجاوب بدون فلترة على user
-            question = Question.objects.filter(qna_session__user__isnull=True).exclude(answers__isnull=False).first()
-
-        if not question:
-            return Response({"error": "No active question found"}, status=status.HTTP_400_BAD_REQUEST)
-
+        question_id = request.data.get("question_id")
         user_answer = request.data.get("answer", "").strip()
+
+        if not question_id:
+            return Response({"error": "question_id is required"}, status=status.HTTP_400_BAD_REQUEST)
         if not user_answer:
             return Response({"error": "Answer cannot be empty"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            question = Question.objects.get(id=question_id)
+        except Question.DoesNotExist:
+            return Response({"error": "Question not found"}, status=status.HTTP_404_NOT_FOUND)
 
         evaluation = qna_engine.evaluate_answers([question.text], [user_answer], question.qna_session.text)[0]
         _, score, feedback = evaluation
@@ -387,22 +404,15 @@ class EvaluateAnswersView(APIView):
             feedback=feedback
         )
 
-        next_question = Question.objects.filter(qna_session=question.qna_session, id__gt=question.id).first()
-
-        response_data = {
+        return Response({
             "question": question.text,
             "user_answer": user_answer,
             "is_correct": is_correct,
             "score": score,
             "feedback": feedback
-        }
+        }, status=status.HTTP_200_OK)
 
-        if next_question:
-            response_data["next_question"] = next_question.text
-        else:
-            response_data["message"] = "No more questions in this session"
 
-        return Response(response_data, status=status.HTTP_200_OK)
 
 
 ##################################################3##
@@ -466,7 +476,7 @@ class SummarizeTextView(APIView):
         if not summarized_text:
             return Response({"error": "Summarization failed or result is empty."}, status=400)
 
- 
+
 
         try:
             similarity = Similarity()
@@ -504,4 +514,4 @@ class SummarizeTextView(APIView):
                 "sbert_score": f"{sbert_score:.2f}",
             },
             status=200,
-        )
+    )

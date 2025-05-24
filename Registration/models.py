@@ -157,6 +157,8 @@ class GrammarCorrectionHistory(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True, blank=True)
     input_text = models.TextField()
     corrected_text = models.TextField()
+    diff = models.TextField(null=True, blank=True)  
+    pdf_file = models.FileField(upload_to="corrected/", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     sbert_score = models.FloatField(null=True, blank=True)
 
