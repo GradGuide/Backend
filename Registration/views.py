@@ -1,3 +1,5 @@
+import json
+from urllib.parse import urlparse
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
 import PyPDF2
@@ -117,7 +119,7 @@ class User_account_View(APIView):
             return Response({"detail": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
 
 ######################################################################################
-
+from asgiref.sync import async_to_sync
 
 
 class SimilarityCheckViews(APIView):
@@ -125,8 +127,8 @@ class SimilarityCheckViews(APIView):
 
     def post(self, request):
         user = request.user if request.user.is_authenticated else None
-        text1 = request.data.get("text1", "")
-        text2 = request.data.get("text2", "")
+        text1 = request.data.get("text1", "").strip()
+        text2 = request.data.get("text2", "").strip()
         file1 = request.FILES.get("file1", None)
         file2 = request.FILES.get("file2", None)
 
@@ -149,8 +151,8 @@ class SimilarityCheckViews(APIView):
         similarity_results = []
 
         if text1 and text2:
-            sbert_score = similarity.sbert_similarity([text1, text2])[0][1] * 100
-            tfidf_score = similarity.tfidf_cosine_similarity([text1, text2])[0][1] * 100
+            sbert_score = int(similarity.sbert_similarity([text1, text2])[0][1] * 100)
+            tfidf_score = int(similarity.tfidf_cosine_similarity([text1, text2])[0][1] * 100)
             common_data = find_common_text(text1, text2)
             
             similarity_result = SimilarityResult.objects.create(
@@ -166,8 +168,8 @@ class SimilarityCheckViews(APIView):
             
             similarity_results.append({
                 "title": "Compare the two texts",
-                "sbert_similarity": f"{sbert_score:.2f}%",
-                "tfidf_similarity": f"{tfidf_score:.2f}%",
+                "sbert_similarity": sbert_score,
+                "tfidf_similarity": tfidf_score,
                 "common_words": similarity_result.common_words,
                 "common_sentences": similarity_result.common_sentences,
                 "common_paragraphs": similarity_result.common_paragraphs,
@@ -176,82 +178,141 @@ class SimilarityCheckViews(APIView):
             return JsonResponse({"results": similarity_results}, status=200)  
 
         else:
-            text = text1 if text1 else text2
+         text = text1 if text1 else text2
 
-            if not text:
-                return JsonResponse({"error": "Please send valid text for comparison"}, status=400)
+        if not text:
+            return JsonResponse({"error": "Please send valid text for comparison"}, status=400)
 
-            search_results = fetch_search_results("http://localhost:8080/search", text)
-            extracted_data = extract_relevant_fields(search_results)
-            urls = list(extracted_data["results"].values())
+        search_results = fetch_search_results("http://localhost:8080/search", text)
+        extracted_data = extract_relevant_fields(search_results)
+        urls = list(extracted_data["results"].values())[:3]
 
-            extracted_texts = {}
-            if urls:
-                extracted_texts = extract_text_from_urls(urls[:3])
+        extracted_texts = {}
+        if urls:
+            try:
+                extracted_texts = async_to_sync(extract_text_from_urls)(urls)
+            except Exception as e:
+                return JsonResponse({"error": f"Error during text extraction: {str(e)}"}, status=500)
 
-            if not extracted_texts:
-                return JsonResponse({"error": "No valid texts were found for comparison."}, status=400)
+        
 
-            similarity_result = SimilarityResult.objects.create(
-                user=user,
-                input_text=text,
-                compared_text="",  
-                sbert_similarity=0.0,
-                tfidf_similarity=0.0,
-                common_words="",
-                common_sentences="",
-                common_paragraphs="",
-            )
+        if not extracted_texts:
+            return JsonResponse({"error": "No valid texts were found for comparison."}, status=400)
 
-            similarity_checker = Similarity()
-            results = []
+        similarity_result = SimilarityResult.objects.create(
+            user=user,
+            input_text=text,
+            compared_text="",  
+            sbert_similarity=0.0,
+            tfidf_similarity=0.0,
+            common_words="",
+            common_sentences="",
+            common_paragraphs="",
+        )
 
-            for url, extracted_text in extracted_texts.items():
-                if extracted_text:
-                    sbert_similarity_score = similarity_checker.sbert_similarity([text, extracted_text])[0][0] * 100
-                    tfidf_similarity_score = similarity_checker.tfidf_cosine_similarity([text, extracted_text])[0][0] * 100
+        similarity_checker = Similarity()
+        results = []
+
+        for url, extracted_text in extracted_texts.items():
+            if extracted_text:
+                try:
+                    sbert_similarity_score = int(similarity_checker.sbert_similarity([text, extracted_text])[0][0] * 100)
+                    tfidf_similarity_score = int(similarity_checker.tfidf_cosine_similarity([text, extracted_text])[0][0] * 100)
                     common_data = find_common_text(text, extracted_text)
 
                     similarity_result_url = SimilarityResultURL.objects.create(
                         similarity_result=similarity_result,
                         url=url,
-                        extracted_text=extracted_text,
                         sbert_similarity=sbert_similarity_score,
                         tfidf_similarity=tfidf_similarity_score,
                         common_words=", ".join(common_data["common_words"]),
                         common_sentences="\n".join(common_data["common_sentences"]),
                         common_paragraphs="\n\n".join(common_data["common_paragraphs"]),
                     )
-                    
+
                     results.append({
-                        "title": extracted_data["results"].get(url, "Address not available"),
+                        "title": urlparse(url).netloc or "Unknown Website",
                         "url": url,
-                        "extracted_text":extracted_text,
-                        "tfidf": f"{tfidf_similarity_score:.2f}",
-                        "sbert": f"{sbert_similarity_score:.2f}",
+                        "tfidf_similarity": tfidf_similarity_score,
+                        "sbert_similarity": sbert_similarity_score,
                         "common_words": similarity_result_url.common_words,
                         "common_sentences": similarity_result_url.common_sentences,
                         "common_paragraphs": similarity_result_url.common_paragraphs,
                     })
+                except Exception as e:
+                    print(f"Error processing URL {url}: {e}")
+                    continue
 
-            return JsonResponse({"results": results}, status=200)
-
-
-
+        return JsonResponse({"results": results}, status=200)
 
 
 ##################################Grammer correction 
 
-llm=LLM(api_key=api_key)
+import difflib
+
+llm = LLM(api_key=api_key)
 gc = GrammarCorrector()
+
+def diff_words(original_text, corrected_text):
+    """
+    تحليل الفرق بين النص الأصلي والمصحح على مستوى الكلمات.
+    ترجع قائمة من القواميس تحتوي id، نوع التغيير، الكلمة الأصلية والمصححة.
+    """
+    original_words = original_text.split()
+    corrected_words = corrected_text.split()
+
+    matcher = difflib.SequenceMatcher(None, original_words, corrected_words)
+
+    changes = []
+    id_counter = 1
+
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == 'equal':
+            continue
+        elif tag == 'replace':
+            orig_segment = original_words[i1:i2]
+            corr_segment = corrected_words[j1:j2]
+            length = max(len(orig_segment), len(corr_segment))
+            for idx in range(length):
+                orig_word = orig_segment[idx] if idx < len(orig_segment) else None
+                corr_word = corr_segment[idx] if idx < len(corr_segment) else None
+                changes.append({
+                    "id": id_counter,
+                    "type": "replaced",
+                    "original_word": orig_word,
+                    "corrected_word": corr_word
+                })
+                id_counter += 1
+        elif tag == 'delete':
+            for orig_word in original_words[i1:i2]:
+                changes.append({
+                    "id": id_counter,
+                    "type": "removed",
+                    "original_word": orig_word,
+                    "corrected_word": None
+                })
+                id_counter += 1
+        elif tag == 'insert':
+            for corr_word in corrected_words[j1:j2]:
+                changes.append({
+                    "id": id_counter,
+                    "type": "added",
+                    "original_word": None,
+                    "corrected_word": corr_word
+                })
+                id_counter += 1
+
+    return changes
+
+
 class GrammarCorrectionAPIView(APIView):
     permission_classes = [AllowAny]
+
     def get(self, request):
         if request.user.is_authenticated:
-                histories = GrammarCorrectionHistory.objects.filter(user=request.user)
+            histories = GrammarCorrectionHistory.objects.filter(user=request.user)
         else:
-                return Response({"error": "You must be logged in to view your history."}, status=status.HTTP_401_UNAUTHORIZED)
-
+            return Response({"error": "You must be logged in to view your history."}, status=status.HTTP_401_UNAUTHORIZED)
 
         serializer = GrammarCorrectionHistorySerializer(histories, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -260,7 +321,7 @@ class GrammarCorrectionAPIView(APIView):
         """Extract text from uploaded PDF file"""
         text = ""
         try:
-            pdf_bytes = BytesIO(pdf_file.read()) 
+            pdf_bytes = BytesIO(pdf_file.read())
             with fitz.open(stream=pdf_bytes, filetype="pdf") as doc:
                 for page in doc:
                     text += page.get_text("text") + "\n"
@@ -284,17 +345,15 @@ class GrammarCorrectionAPIView(APIView):
             return Response({"error": "No valid text or PDF provided."}, status=400)
 
         try:
-            if len(text.split(" ")) > 20:
-                corrected_text = gc.correct(text)
-            else:
-                corrected_text = llm.grammar_corrector(text)
+            corrected_text = llm.grammar_corrector(text)
 
             similarity = Similarity()
-            sbert_score = similarity.sbert_similarity([text, corrected_text])[0][1] * 100
-            diff_result = gc.diff(text, corrected_text)
+            sbert_score = int(similarity.sbert_similarity([text, corrected_text])[0][1] * 100)
+
+            # استخدام diff_words لتحليل الأخطاء على مستوى الكلمات
+            diff_result = diff_words(text, corrected_text)
 
             user = request.user if request.user.is_authenticated else None
-
 
             # إنشاء السجل
             grammar_history = GrammarCorrectionHistory.objects.create(
@@ -302,7 +361,7 @@ class GrammarCorrectionAPIView(APIView):
                 input_text=text,
                 corrected_text=corrected_text,
                 sbert_score=sbert_score,
-                 diff=diff_result,
+                diff=json.dumps(diff_result),
             )
 
             # إنشاء ملف PDF بالنص المصحح
@@ -319,7 +378,6 @@ class GrammarCorrectionAPIView(APIView):
                 with open(pdf_path, "wb") as f:
                     f.write(pdf_data)
 
-                # تحديث السجل برابط الملف
                 grammar_history.pdf_file = file_name
                 grammar_history.save()
             except Exception as e:
@@ -327,13 +385,14 @@ class GrammarCorrectionAPIView(APIView):
 
             return Response({
                 "corrected_text": corrected_text,
-                "sbert_score": f"{sbert_score:.2f}",
+                "sbert_score": sbert_score,
                 "pdf_url": pdf_url,
                 "errors": diff_result
             }, status=200)
 
         except Exception as e:
             return Response({"error": f"An error occurred: {str(e)}"}, status=500)
+
 ####################################################
 
 
@@ -416,7 +475,6 @@ class EvaluateAnswersView(APIView):
 
 
 ##################################################3##
-
 class SummarizeTextView(APIView):
     permission_classes = [AllowAny]
 
@@ -454,7 +512,7 @@ class SummarizeTextView(APIView):
 
         detected_language = detect(text)
         language = "Arabic" if detected_language == "ar" else "French" if detected_language == "fr" else "English"
-        sbert_score= 0.0
+        sbert_score= 0
 
         summarization, created = Summarization.objects.get_or_create(
             user=request.user if request.user.is_authenticated else None,
@@ -471,7 +529,9 @@ class SummarizeTextView(APIView):
                 },
                 status=200,
             )
-        summarized_text = llm.summarize(text, language=language).strip()
+        summarized_text = llm.summarize(text, language=language)
+        
+
 
         if not summarized_text:
             return Response({"error": "Summarization failed or result is empty."}, status=400)
@@ -480,7 +540,8 @@ class SummarizeTextView(APIView):
 
         try:
             similarity = Similarity()
-            sbert_score = similarity.sbert_similarity([text, summarized_text])[0][1] * 100
+            sbert_score = int(similarity.sbert_similarity([text, summarized_text])[0][1] * 100)
+
         except Exception as e:
             sbert_score = 0
             print("Error calculating similarity:", e)
@@ -511,7 +572,7 @@ class SummarizeTextView(APIView):
                 "summary_text": summarized_text,
                 "summarization_id": summarization.id,
                 "pdf_url": pdf_url,
-                "sbert_score": f"{sbert_score:.2f}",
+                "sbert_score": sbert_score,
             },
             status=200,
     )

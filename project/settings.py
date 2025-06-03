@@ -31,8 +31,8 @@ SECRET_KEY = 'django-insecure-!m9=h&k%*x23lk_jdo$#yhaiyhy(x%zx$(f04*e(w1-+&eyt4f
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
-ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "192.168.143.66", "192.168.143.74",'.railway.app']
-CSRF_TRUSTED_ORIGINS = ['http://192.168.143.74:3000', 'http://192.168.143.74:9000']
+ALLOWED_HOSTS = ["*", "localhost", "127.0.0.1", "192.168.91.66", "192.168.91.74",'.railway.app']
+CSRF_TRUSTED_ORIGINS = ['http://192.168.91.74:3000', 'http://192.168.91.74:9000']
 CORS_ALLOW_ALL_ORIGINS = True  
 CORS_ALLOW_CREDENTIALS = True 
 
@@ -107,7 +107,7 @@ MIDDLEWARE = [
 
 CORS_ALLOWED_ORIGINS = [
 "http://localhost:3000",
-"http://192.168.143.74:3000", 
+"http://192.168.91.74:3000", 
 ]
 
 

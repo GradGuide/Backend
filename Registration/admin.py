@@ -66,7 +66,7 @@ class AnswerAdmin(admin.ModelAdmin):
 admin.site.register(Answer, AnswerAdmin)
 
 class GrammarCorrectionHistoryAdmin(admin.ModelAdmin):
-    list_display = ('user', 'input_text', 'corrected_text', 'created_at','sbert_score')
+    list_display = ('user', 'input_text', 'corrected_text','diff' ,'sbert_score','pdf_file','created_at')
     search_fields = ('user__email', 'input_text')
     list_filter = ('created_at',)
     ordering = ('-created_at',)

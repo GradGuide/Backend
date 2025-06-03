@@ -115,10 +115,22 @@ class QnASerializer(serializers.ModelSerializer):
     class Meta:
         model = QnA
         fields = '__all__'
+import json
 class GrammarCorrectionHistorySerializer(serializers.ModelSerializer):
     class Meta:
         model = GrammarCorrectionHistory
         fields = '__all__'
+
+        errors = serializers.SerializerMethodField()
+
+  
+        def get_errors(self, obj):
+            if obj.diff:
+                try:
+                    return json.loads(obj.diff)
+                except Exception:
+                    return []
+            return []
 
 class SimilarityResultSerializer(serializers.ModelSerializer):
     class Meta:

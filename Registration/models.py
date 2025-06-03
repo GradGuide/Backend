@@ -76,7 +76,7 @@ class Summarization(models.Model):
     summary_text = models.TextField(default="")
     pdf_file = models.FileField(upload_to="summaries/", blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True,null=True)
-    sbert_score = models.FloatField(null=True, blank=True)
+    sbert_score = models.FloatField(default=0.0)
 
     def __str__(self):
         return f"Summary by {self.user} - {self.created_at}"
@@ -97,7 +97,7 @@ class SimilarityResult(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Similarity SBERT: {self.sbert_similarity}% - {self.user if self.user else 'Anonymous'}"
+        return f"Similarity SBERT: {self.sbert_similarity} - {self.user if self.user else 'Anonymous'}"
 
 
 class SimilarityResultURL(models.Model):
@@ -112,7 +112,7 @@ class SimilarityResultURL(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"URL: {self.url} - Similarity SBERT: {self.sbert_similarity}% - TF-IDF: {self.tfidf_similarity}%"
+        return f"URL: {self.url} - Similarity SBERT: {self.sbert_similarity} - TF-IDF: {self.tfidf_similarity}"
 
 
 
